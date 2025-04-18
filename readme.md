@@ -5,7 +5,7 @@
 > севере Италии в XVI веке. Благодаря выдающемуся чутью используется для
 > поиска трюфелей.
 
-CLI-инструмент для быстрого поиска информации в интернете прямо из браузерной строки. Вдохновлено [DuckDuckGo Bangs](https://duckduckgo.com/bangs) и [видео Theo](https://youtu.be/_DnNzRaBWUU?si=gvUXTlTIgQViLhU_).
+CLI-инструмент для быстрого поиска информации в интернете прямо из терминала. Вдохновлено [DuckDuckGo Bangs](https://duckduckgo.com/bangs) и [видео Theo](https://youtu.be/_DnNzRaBWUU?si=gvUXTlTIgQViLhU_).
 
 # Использование
 
