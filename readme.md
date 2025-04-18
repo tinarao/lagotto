@@ -57,6 +57,7 @@ lag rmbang yt
 ```bash
 cd ~
 git clone https://github.com/tinarao/lagotto.git lag
+cd lag
 cargo build --release
 cargo install --path .
 ```
@@ -66,12 +67,12 @@ cargo install --path .
 Bangs хранятся в корне проекта, в файле ```storage.json``` в следующем формате:
 ```json
 {
-	"bangs": [
-		{
-			"alias": "string",
-			"url": "string" 
-		}
-	]
+  "bangs": [
+    {
+      "alias": "string",
+      "url": "string" 
+    }
+  ]
 }
 ```
 
