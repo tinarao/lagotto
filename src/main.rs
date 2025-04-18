@@ -25,6 +25,8 @@ pub enum Commands {
         #[arg(trailing_var_arg = true)]
         query: Vec<String>,
     },
+    /// Display a list of saved bangs
+    List,
     /// Add a new bang
     Newbang {
         /// The name of the new bang
@@ -57,7 +59,7 @@ fn main() {
 
     match args.command {
         Commands::F { bang, query } => {
-            let bang_struct = match storage.find_bang(bang) {
+            let bang_struct = match storage.find_bang(&bang) {
                 Ok(b) => b,
                 Err(e) => {
                     println!("{}", e);
@@ -82,9 +84,28 @@ fn main() {
                 }
             }
         }
-        Commands::Rmbang { bang } => {
-            println!("remove {}", bang);
-            return;
+        Commands::Rmbang { bang } => match storage.remove_bang(&bang) {
+            Ok(_) => {
+                println!("bang {} successfully removed", bang);
+                return;
+            }
+            Err(e) => {
+                println!("failed to remove a bang: {}", e);
+                return;
+            }
+        },
+        Commands::List => {
+            let bangs = match storage.find_all() {
+                Ok(bv) => bv,
+                Err(e) => {
+                    println!("failed to get saved bangs: {}", e);
+                    return;
+                }
+            };
+
+            for bang in bangs {
+                bang.pretty_print();
+            }
         }
     }
 }

@@ -1,13 +1,14 @@
 use crate::bangs::Bang;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{Read, Seek, Write},
     path::Path,
 };
 
 pub struct Storage {
     filepath: String,
+    backup_filepath: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,11 +16,44 @@ struct StorageFile {
     bangs: Vec<Bang>,
 }
 
+impl StorageFile {
+    pub fn new() -> Self {
+        StorageFile { bangs: Vec::new() }
+    }
+}
+
 impl Storage {
     pub fn new() -> Self {
         Storage {
             filepath: "storage.json".to_string(),
+            backup_filepath: "backup_storage.json".to_string(),
         }
+    }
+
+    fn read_to_struct(&self) -> Result<StorageFile, String> {
+        self.validate_file_existense();
+        self.backup()?;
+
+        let storage: StorageFile;
+        let mut file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&self.filepath)
+        {
+            Ok(f) => f,
+            Err(e) => {
+                return Err(e.to_string());
+            }
+        };
+
+        let mut contents = String::new();
+
+        if let Err(e) = file.read_to_string(&mut contents) {
+            return Err(e.to_string());
+        }
+
+        storage = serde_json::from_str(&contents).unwrap_or(StorageFile::new());
+        return Ok(storage);
     }
 
     pub fn validate_file_existense(&self) {
@@ -34,40 +68,32 @@ impl Storage {
                 }
             }
             Err(e) => {
-                panic!("failde to create a file: {}", e);
+                panic!("failed to create a file: {}", e);
             }
         }
     }
 
-    pub fn find_bang(&self, alias: String) -> Result<Bang, String> {
-        // 1. Parse file to StorageFile
-        // 2. Find needed bang and return it
+    pub fn find_all(&self) -> Result<Vec<Bang>, String> {
+        match self.read_to_struct() {
+            Ok(s) => Ok(s.bangs),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn find_bang(&self, alias: &String) -> Result<Bang, String> {
         self.validate_file_existense();
-        let storage: StorageFile;
-
-        let mut file = match OpenOptions::new().read(true).open(&self.filepath) {
-            Ok(f) => f,
+        let storage = match self.read_to_struct() {
+            Ok(s) => s,
             Err(e) => {
-                return Err(e.to_string());
+                return Err(e);
             }
-        };
-
-        let mut contents_str = String::new();
-        match file.read_to_string(&mut contents_str) {
-            Ok(_) => {
-                storage = match serde_json::from_str(&contents_str) {
-                    Ok(v) => v,
-                    Err(_) => StorageFile { bangs: Vec::new() },
-                };
-            }
-            Err(e) => return Err(e.to_string()),
         };
 
         let bangs = storage.bangs;
-        let bang = bangs.iter().find(|x| x.alias == alias);
+        let bang = bangs.iter().find(|x| x.alias == alias.clone());
         match bang {
             Some(b) => return Ok(b.clone()),
-            None => return Err(format!("Bang {} is not set", alias)),
+            None => return Err(format!("bang {} is not set", alias)),
         }
     }
 
@@ -79,39 +105,99 @@ impl Storage {
         self.validate_file_existense();
 
         let mut storage: StorageFile;
-        let mut file = match OpenOptions::new()
+        let mut file = self.get_file()?;
+
+        let mut contents = String::new();
+        if let Err(e) = file.read_to_string(&mut contents) {
+            return Err(e.to_string());
+        }
+
+        storage = serde_json::from_str(&contents).unwrap_or(StorageFile::new());
+        storage.bangs.push((*bang).clone());
+
+        self.write_updated_contents(storage)?;
+
+        Ok(())
+    }
+
+    pub fn remove_bang(&self, alias: &String) -> Result<(), String> {
+        self.validate_file_existense();
+        match self.find_bang(&alias) {
+            Ok(_) => {}
+            Err(e) => return Err(e),
+        };
+
+        let mut storage = self.read_to_struct()?;
+        let filtered: Vec<Bang> = storage
+            .bangs
+            .into_iter()
+            .filter(|b| b.alias != alias.clone())
+            .collect();
+
+        storage.bangs = filtered;
+        self.write_updated_contents(storage)?;
+        return Ok(());
+    }
+
+    fn get_file(&self) -> Result<File, String> {
+        OpenOptions::new()
             .read(true)
             .write(true)
             .open(&self.filepath)
-        {
-            Ok(f) => f,
+            .map_err(|e| e.to_string())
+    }
+
+    fn write_updated_contents(&self, storage: StorageFile) -> Result<(), String> {
+        let mut file = self.get_file()?;
+        self.backup()?;
+        self.clear_file()?;
+
+        serde_json::to_writer_pretty(&mut file, &storage)
+            .map_err(|e| format!("failed to write to storage file: {}", e))
+    }
+
+    fn clear_file(&self) -> Result<(), String> {
+        let mut file = self.get_file()?;
+
+        file.set_len(0)
+            .map_err(|e| format!("failed to truncate file: {}", e))?;
+
+        match file.rewind() {
+            Ok(_) => {}
+            Err(e) => {
+                println!("failed to update the file: {e}. reverting changes.");
+                self.apply_backup()?;
+            }
+        };
+
+        return Ok(());
+    }
+
+    // Backups
+    fn backup(&self) -> Result<(), String> {
+        let backup = Path::new(&self.backup_filepath);
+
+        match fs::copy(&self.filepath, backup) {
+            Ok(_) => {}
+            Err(e) => return Err(e.to_string()),
+        };
+
+        // voila, backup created
+
+        return Ok(());
+    }
+
+    // Basically renames backup_storage.json to storage.json
+    // So main storage file now is one that was backup.
+    // Use it when something important fails, like clear_file, etc
+    fn apply_backup(&self) -> Result<(), String> {
+        match fs::remove_file(&self.filepath) {
+            Ok(()) => {}
             Err(e) => {
                 return Err(e.to_string());
             }
         };
 
-        let mut contents = String::new();
-        match file.read_to_string(&mut contents) {
-            Ok(_) => {
-                storage =
-                    serde_json::from_str(&contents).unwrap_or(StorageFile { bangs: Vec::new() });
-            }
-            Err(e) => {
-                return Err(format!("Failed to read storage file: {}", e));
-            }
-        }
-
-        storage.bangs.push((*bang).clone());
-
-        // seek to file start before writing
-        file.set_len(0)
-            .map_err(|e| format!("Failed to truncate file: {}", e))?;
-        file.rewind()
-            .map_err(|e| format!("Failed to rewind file: {}", e))?;
-
-        serde_json::to_writer_pretty(&mut file, &storage)
-            .map_err(|e| format!("Failed to write to storage file: {}", e))?;
-
-        Ok(())
+        fs::rename(&self.backup_filepath, &self.filepath).map_err(|e| e.to_string())
     }
 }

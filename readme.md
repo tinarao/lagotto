@@ -5,12 +5,15 @@
 > севере Италии в XVI веке. Благодаря выдающемуся чутью используется для
 > поиска трюфелей.
 
-CLI-инструмент для быстрого поиска информации в интернете прямо из браузерной строки.
+CLI-инструмент для быстрого поиска информации в интернете прямо из браузерной строки. Вдохновлено [DuckDuckGo Bangs](https://duckduckgo.com/bangs) и [видео Theo](https://youtu.be/_DnNzRaBWUU?si=gvUXTlTIgQViLhU_).
 
-# Команды
+# Использование
 
 ## newbang
-```lag newbang <bang> <url>```
+ 
+```bash
+lag newbang <bang> <url>
+```
 
 Создаёт новый Bang-алиас. 
 Аргументы:
@@ -18,25 +21,29 @@ CLI-инструмент для быстрого поиска информаци
 2. url - поисковый адрес нужного сервиса.
 
 **Пример использования**
-```
+```bash
 lag newbang yt https://www.youtube.com/results?search_query=
 ```
 
 ## f
-```lag f <bang> <query>```
+```bash
+lag f <bang> <query>
+```
 Выполняет поиск на нужном сервисе.
 Аргументы:
 1. bang - заранее созданный (newbang) алиас.
 2. query - поисковый запрос.
 
 **Пример использования**
-```
-lag f yt retarded cat memes
+```bash
+lag f yt retarded memes
 ```
 После выполнения запроса открывается установленный по умолчанию браузер, на котором открыта страница с результатами поиска.
 
 ## rmbang
-```lag f <bang>```
+```bash
+lag f <bang>
+```
 Удаляет созданный алиас.
 Аргументы:
 1. bang - заранее созданный (newbang) алиас.
@@ -45,3 +52,29 @@ lag f yt retarded cat memes
 ```
 lag rmbang yt
 ```
+
+# Установка
+```bash
+cd ~
+git clone https://github.com/tinarao/lagotto.git lag
+cargo build --release
+cargo install --path .
+```
+Готово!
+
+# Конфигурации
+Bangs хранятся в корне проекта, в файле ```storage.json``` в следующем формате:
+```json
+{
+	"bangs": [
+		{
+			"alias": "string",
+			"url": "string" 
+		}
+	]
+}
+```
+
+
+# Совместимость
+Тестировалось только на Ubuntu 24.04.2.

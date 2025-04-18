@@ -6,10 +6,12 @@ pub struct Bang {
     pub url: String,
 }
 
-// bangs are saved in JSON format
-
 impl Bang {
     pub fn new(alias: String, url: String) -> Self {
         Bang { alias, url }
+    }
+
+    pub fn pretty_print(&self) {
+        println!("{} -> {}", self.alias, self.url)
     }
 }
